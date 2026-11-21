@@ -1,19 +1,31 @@
-name: Проверка корзины
+default:
+  image: python:3.13-slim
+  before_script:
+    - echo "source=$CI_PIPELINE_SOURCE commit=$CI_COMMIT_SHORT_SHA"
 
-on: push
+stages:
+  - check
+  - test
 
-permissions:
-  contents: read
+syntax-check:
+  stage: check
+  script:
+    - python -m py_compile test_checkout.py
 
-jobs:
-  checkout-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-      - name: Установить pytest
-        run: python -m pip install "pytest>=8,<10"
-      - name: Проверить сумму
-        run: python -m pytest -q test_checkout.py
+checkout-test:
+  stage: test
+  script:
+    - python -m pip install pytest==9.2.0 pytest-html==4.2.0
+    - python -m pytest -q test_checkout.py::test_total_includes_delivery --html=report.html --self-contained-html
+  artifacts:
+    when: always
+    paths:
+      - report.html
+
+free-delivery:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  script:
+    - python -m pip install pytest==9.2.0
+    - python -m pytest -q test_checkout.py::test_total_with_free_delivery
